@@ -148,7 +148,9 @@ Deno.serve(async(req:Request)=>{
      vaultExists("volai_api_key"),vaultExists("volai_webhook_secret"),
      vaultExists("stripe_secret_key"),vaultExists("stripe_webhook_secret")
    ]);
-   const volaiSenderPresent=true;
+   // A connected provider and secrets do not prove that a sender is configured.
+   // Keep readiness false until the provider confirms a usable sender identity.
+   const volaiSenderPresent=false;
 
    return json({
     summary:{
@@ -205,7 +207,7 @@ Deno.serve(async(req:Request)=>{
   if(error)throw error;
   return json({table,rows:scrub(data||[]),count,limit,offset});
  }catch(e){
-  console.error(e);
-  return json({error:e instanceof Error?e.message:"Database explorer failed"},500);
+  console.error("platform-owner-data",e);
+  return json({error:"Správu platformy nyní nelze načíst."},500);
  }
 });
