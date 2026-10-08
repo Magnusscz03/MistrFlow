@@ -34,5 +34,8 @@ jobs:
       - name: Verify Supabase-only runtime
         run: python3 scripts/verify_supabase_target.py
 
+      - name: Test production verifier
+        run: python3 scripts/test_verify_production.py
+
       - name: Verify published Android APK
         run: python3 scripts/verify_published_apk.py
