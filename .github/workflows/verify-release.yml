@@ -33,3 +33,6 @@ jobs:
 
       - name: Verify Supabase-only runtime
         run: python3 scripts/verify_supabase_target.py
+
+      - name: Verify published Android APK
+        run: python3 scripts/verify_published_apk.py
