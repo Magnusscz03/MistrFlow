@@ -83,3 +83,10 @@ Service worker ukládá jen osm výslovně povolených veřejných ikon a manife
 Obnoveno z archivu v13. Starší zmínky o GitHub 403 výše jsou historické; vytvoření pracovní větve již uspělo. Vercel API stále odmítá přístup k týmu a nové produkční nasazení není potvrzené. `http-verification.json` a `nahled.jpg` jsou historické podklady, nikoli důkaz dnešního stavu.
 
 Před commitem se ověřuje úplnost distribučních souborů, shoda konfigurace a zákaz ukládání soukromých dat do PWA cache. Původní editovatelný React projekt, produkční Android podpis a připojení SMS, telefonování, AI a plateb zůstávají samostatnými nedokončenými úkoly.
+
+
+## Editovatelný Next.js základ z větve main
+
+Souběžná práce na `main` přidala minimální editovatelný Next.js základ (`app/`, `package.json`, `tsconfig.json` a `.env.example`). Tyto soubory jsou v pracovní větvi zachované, ale aktuální Vercel konfigurace záměrně dál publikuje kompletní ověřený adresář `dist/`. Jednoduchá stránka z `app/page.tsx` proto nenahrazuje obnovenou aplikaci a není produkčním vstupem.
+
+Další vývoj má postupně převést funkce z obnoveného zkompilovaného JavaScriptu do editovatelných React komponent při zachování stejného Supabase projektu, tenantního modelu a veřejných tras. Přepnutí Vercelu na Next.js je samostatný release krok až po úplném funkčním a bezpečnostním ověření.
