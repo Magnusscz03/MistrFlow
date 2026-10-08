@@ -51,6 +51,29 @@ def scan_error_boundary(source: str, label: str, log_marker: str, generic_error:
     return failures
 
 
+def scan_checkout_input(source: str) -> list[str]:
+    failures: list[str] = []
+    membership_query = 'admin.from("organization_memberships")'
+    body_limit = 'byteLength>4096)return json({error:"Požadavek je příliš dlouhý."},413)'
+    malformed_body = 'return json({error:"Neplatný požadavek."},400)'
+    uuid_guard = 'if(!uuidPattern.test(orgId))return json({error:"Neplatná firma."},400);'
+    if body_limit not in source:
+        failures.append("checkout request bodies must be capped before privileged queries")
+    if malformed_body not in source or "JSON.parse(rawBody)" not in source:
+        failures.append("malformed checkout JSON must return 400")
+    if uuid_guard not in source:
+        failures.append("checkout organization IDs must be validated")
+    if membership_query in source:
+        membership_offset = source.index(membership_query)
+        for guard, message in (
+            (body_limit, "checkout body limit must run before membership lookup"),
+            (uuid_guard, "checkout organization validation must run before membership lookup"),
+        ):
+            if guard in source and source.index(guard) > membership_offset:
+                failures.append(message)
+    return failures
+
+
 def main() -> int:
     try:
         source = OWNER_BACKEND.read_text(encoding="utf-8")
@@ -72,6 +95,7 @@ def main() -> int:
         'console.error("create-checkout",e)',
         'error:"Platbu nyní nelze připravit."',
     ))
+    failures.extend(scan_checkout_input(checkout_source))
     for failure in failures:
         print("FAIL:", failure)
     print(f"Privileged backend readiness checked; {len(failures)} failures.")

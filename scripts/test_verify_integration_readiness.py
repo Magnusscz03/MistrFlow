@@ -1,6 +1,6 @@
 import unittest
 
-from verify_integration_readiness import scan, scan_error_boundary
+from verify_integration_readiness import scan, scan_checkout_input, scan_error_boundary
 
 
 SAFE = '''
@@ -22,6 +22,11 @@ try {} catch(e) {
 '''
 
 SAFE_CHECKOUT = '''
+const rawBody=await req.text();
+if(new TextEncoder().encode(rawBody).byteLength>4096)return json({error:"Požadavek je příliš dlouhý."},413);
+try{const parsed=JSON.parse(rawBody);if(!parsed)return json({error:"Neplatný požadavek."},400);}catch{return json({error:"Neplatný požadavek."},400)}
+if(!uuidPattern.test(orgId))return json({error:"Neplatná firma."},400);
+admin.from("organization_memberships")
 try {} catch(e) {
  console.error("create-checkout",e);
  return json({error:"Platbu nyní nelze připravit."},500);
@@ -77,6 +82,23 @@ class IntegrationReadinessTests(unittest.TestCase):
             'console.error("create-checkout",e)',
             'error:"Platbu nyní nelze připravit."',
         ), [])
+
+    def test_checkout_input_guards_pass(self):
+        self.assertEqual(scan_checkout_input(SAFE_CHECKOUT), [])
+
+    def test_checkout_body_limit_is_required(self):
+        failures = scan_checkout_input(SAFE_CHECKOUT.replace(
+            'if(new TextEncoder().encode(rawBody).byteLength>4096)return json({error:"Požadavek je příliš dlouhý."},413);',
+            "",
+        ))
+        self.assertIn("checkout request bodies must be capped before privileged queries", failures)
+
+    def test_checkout_organization_validation_is_required(self):
+        failures = scan_checkout_input(SAFE_CHECKOUT.replace(
+            'if(!uuidPattern.test(orgId))return json({error:"Neplatná firma."},400);',
+            "",
+        ))
+        self.assertIn("checkout organization IDs must be validated", failures)
 
     def test_privileged_backend_without_server_log_is_rejected(self):
         failures = scan_error_boundary(
