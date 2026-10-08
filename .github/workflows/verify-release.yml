@@ -28,6 +28,12 @@ jobs:
       - name: Test secret scanner
         run: python3 scripts/test_verify_no_secrets.py
 
+      - name: Verify Supabase migration safety
+        run: python3 scripts/verify_supabase_migrations.py
+
+      - name: Test Supabase migration verifier
+        run: python3 scripts/test_verify_supabase_migrations.py
+
       - name: Verify deployment manifest
         run: node scripts/verify-deploy.mjs
 
