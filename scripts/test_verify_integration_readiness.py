@@ -1,6 +1,6 @@
 import unittest
 
-from verify_integration_readiness import scan
+from verify_integration_readiness import scan, scan_error_boundary
 
 
 SAFE = '''
@@ -11,6 +11,20 @@ if(!auth?.startsWith("Bearer "))return json({error:"Not authenticated"},401);
 try {} catch(e) {
  console.error("platform-owner-data",e);
  return json({error:"Správu platformy nyní nelze načíst."},500);
+}
+'''
+
+SAFE_OWNER_AI = '''
+try {} catch(e) {
+ console.error("owner-ai",e);
+ return json({error:"AI služba není dostupná."},500);
+}
+'''
+
+SAFE_CHECKOUT = '''
+try {} catch(e) {
+ console.error("create-checkout",e);
+ return json({error:"Platbu nyní nelze připravit."},500);
 }
 '''
 
@@ -47,6 +61,31 @@ class IntegrationReadinessTests(unittest.TestCase):
             'if(!auth)return json({error:"Server configuration missing"},500);',
         ))
         self.assertIn("missing or malformed bearer authentication must return 401", failures)
+
+    def test_owner_ai_error_boundary_passes(self):
+        self.assertEqual(scan_error_boundary(
+            SAFE_OWNER_AI,
+            "owner AI backend",
+            'console.error("owner-ai",e)',
+            'error:"AI služba není dostupná."',
+        ), [])
+
+    def test_checkout_error_boundary_passes(self):
+        self.assertEqual(scan_error_boundary(
+            SAFE_CHECKOUT,
+            "checkout backend",
+            'console.error("create-checkout",e)',
+            'error:"Platbu nyní nelze připravit."',
+        ), [])
+
+    def test_privileged_backend_without_server_log_is_rejected(self):
+        failures = scan_error_boundary(
+            SAFE_OWNER_AI.replace('console.error("owner-ai",e);', ""),
+            "owner AI backend",
+            'console.error("owner-ai",e)',
+            'error:"AI služba není dostupná."',
+        )
+        self.assertIn("owner AI backend must keep a server-side error log", failures)
 
 
 if __name__ == "__main__":

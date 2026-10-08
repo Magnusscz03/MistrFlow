@@ -8,6 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OWNER_BACKEND = ROOT / "backend/platform-owner-data/index.ts"
+OWNER_AI_BACKEND = ROOT / "backend/owner-ai/index.ts"
+CHECKOUT_BACKEND = ROOT / "backend/create-checkout/index.ts"
 
 
 def scan(source: str) -> list[str]:
@@ -38,16 +40,41 @@ def scan(source: str) -> list[str]:
     return failures
 
 
+def scan_error_boundary(source: str, label: str, log_marker: str, generic_error: str) -> list[str]:
+    failures: list[str] = []
+    if log_marker not in source:
+        failures.append(f"{label} must keep a server-side error log")
+    if generic_error not in source:
+        failures.append(f"{label} must return its approved generic error")
+    if re.search(r"return\s+json\s*\(\s*\{\s*error\s*:\s*[^}]*\.message", source):
+        failures.append(f"{label} must not return internal exception messages")
+    return failures
+
+
 def main() -> int:
     try:
         source = OWNER_BACKEND.read_text(encoding="utf-8")
+        owner_ai_source = OWNER_AI_BACKEND.read_text(encoding="utf-8")
+        checkout_source = CHECKOUT_BACKEND.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
         print(f"FAIL: cannot read {OWNER_BACKEND.relative_to(ROOT)}: {error}")
         return 1
     failures = scan(source)
+    failures.extend(scan_error_boundary(
+        owner_ai_source,
+        "owner AI backend",
+        'console.error("owner-ai",e)',
+        'error:"AI služba není dostupná."',
+    ))
+    failures.extend(scan_error_boundary(
+        checkout_source,
+        "checkout backend",
+        'console.error("create-checkout",e)',
+        'error:"Platbu nyní nelze připravit."',
+    ))
     for failure in failures:
         print("FAIL:", failure)
-    print(f"Owner integration readiness checked; {len(failures)} failures.")
+    print(f"Privileged backend readiness checked; {len(failures)} failures.")
     return int(bool(failures))
 
 

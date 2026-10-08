@@ -37,6 +37,9 @@ Deno.serve(async req=>{
   const target=new URL(session.url);if(target.protocol!=="https:"||!["checkout.stripe.com","billing.stripe.com"].includes(target.hostname))return json({error:"Neplatná platební adresa."},502);
   await admin.from("audit_logs").insert({organization_id:orgId,actor_user_id:user.id,action:portal?"billing.portal_opened":"billing.checkout_created",entity_type:"subscription",entity_id:sub.id,details:{session_id:session.id,plan_code:b.plan_code||null}});
   return json({url:session.url});
- }catch{return json({error:"Platbu nyní nelze připravit."},500)}
+ }catch(e){
+  console.error("create-checkout",e);
+  return json({error:"Platbu nyní nelze připravit."},500)
+ }
 });
 
