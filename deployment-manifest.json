@@ -1,0 +1,192 @@
+{
+  "url": "https://mistrflow.vercel.app/",
+  "files": [
+    {
+      "file": "_next/static/restored-v1/chunks/00z4pmesk2f4f.js",
+      "sha": "0c38fbe0074be8d84ed2f7fdba8cd328bfb85c3c",
+      "size": 13822
+    },
+    {
+      "file": "_next/static/restored-v1/chunks/0c0hxoamwjsbw.js",
+      "sha": "3f4899d0f1d29d89df1ae015f694c8714284cfb0",
+      "size": 112594
+    },
+    {
+      "file": "_next/static/restored-v1/chunks/0ju-p_v9o7wzh.css",
+      "sha": "74c9f89827e107fca92d3eef8504ad3b05cf6309",
+      "size": 5918
+    },
+    {
+      "file": "_next/static/restored-v1/chunks/0pgmdgi0s2evj.js",
+      "sha": "c80c8631b8615820a08e91cec95a11d68fde12f4",
+      "size": 414
+    },
+    {
+      "file": "_next/static/restored-v1/chunks/1sc6v28qjvkfw.js",
+      "sha": "ac3fc5ce4926e8687edf0af495ef3c6bceaede9d",
+      "size": 230281
+    },
+    {
+      "file": "_next/static/restored-v1/chunks/29e1_35bz4bkp.js",
+      "sha": "b22ba0d1f1f64574ca827da0f8fa09a7a66cd9ce",
+      "size": 185228
+    },
+    {
+      "file": "_next/static/restored-v1/chunks/2iyapmsnhx_ho.js",
+      "sha": "42cb0878a64661a9c14233a703ada618ae7a6e5c",
+      "size": 2803
+    },
+    {
+      "file": "_next/static/restored-v1/chunks/2k-vb06h19vn9.css",
+      "sha": "aa10308203bbbacf175d04c9967d7715112f8c6c",
+      "size": 1268
+    },
+    {
+      "file": "_next/static/restored-v1/chunks/36e4hnicnkdtn.css",
+      "sha": "1a514f9703c67f26b8c8bc8637712e913334c961",
+      "size": 9810
+    },
+    {
+      "file": "_next/static/restored-v1/chunks/3vvmgpd_iqxl-.js",
+      "sha": "92c5d57c3763aa861bea1f88b1622d7dfbbc62b2",
+      "size": 16898
+    },
+    {
+      "file": "_next/static/restored-v1/chunks/mistrflow-app-restored-v1.js",
+      "sha": "cfb28cf6c99967ad535947d4521401a1e16aff89",
+      "size": 312359
+    },
+    {
+      "file": "_next/static/restored-v1/chunks/turbopack-1cvbnb3nlabgn.js",
+      "sha": "b05e710d4e2753822463e96c708a7e41676a49e9",
+      "size": 10030
+    },
+    {
+      "file": "app/index.html",
+      "sha": "6c82bd9f90c5ebd292897e42e88e084b4c5c1721",
+      "size": 7498
+    },
+    {
+      "file": "auth/confirmed/index.html",
+      "sha": "5fe5b56a7738ed4351190ec2fca8173ee8555f5e",
+      "size": 782
+    },
+    {
+      "file": "billing.js",
+      "sha": "393cb7527dca7cc2838cc1efc78195a8a3711049",
+      "size": 5640
+    },
+    {
+      "file": "brand/apple-touch-icon.png",
+      "sha": "1ddb5ad491f3a74814884eb779cc12aa3172b0dc",
+      "size": 20690
+    },
+    {
+      "file": "brand/brand.css",
+      "sha": "516f620759003e074f90ef791dd3e2dc549b65e6",
+      "size": 739
+    },
+    {
+      "file": "brand/favicon.png",
+      "sha": "f613c83934dce15a850c758ae0f28e0ad724390a",
+      "size": 2499
+    },
+    {
+      "file": "brand/mark.png",
+      "sha": "6491a758b3806d341a86cd068a07bc7d6d4a5489",
+      "size": 6799
+    },
+    {
+      "file": "brand/mistrflow-profile.png",
+      "sha": "9b056ad628e0f8a62f83e7218b43a776c04439fb",
+      "size": 1199077
+    },
+    {
+      "file": "connectivity.css",
+      "sha": "431352c5a6534c466c5fa4f555dc1032221a1f43",
+      "size": 871
+    },
+    {
+      "file": "connectivity.js",
+      "sha": "50500acaaacf886a4cee8040c7b7ed2f7e143923",
+      "size": 940
+    },
+    {
+      "file": "download/download.css",
+      "sha": "fd8212bb3749e1bd964225950cbe9c398f0282c0",
+      "size": 2310
+    },
+    {
+      "file": "download/index.html",
+      "sha": "c8349cd585b7562c6d68c67ff8d90e584d5ccb8b",
+      "size": 3930
+    },
+    {
+      "file": "icon-192.png",
+      "sha": "9618402925909d91350d41b81fba795451013d75",
+      "size": 23494
+    },
+    {
+      "file": "icon-512.png",
+      "sha": "abe08a8e36d8e6a88aff072b4c4deb5db721f798",
+      "size": 180017
+    },
+    {
+      "file": "icon-maskable-512.png",
+      "sha": "d7815bc9c58eb519d4e08b16d778001f042a9a5b",
+      "size": 117337
+    },
+    {
+      "file": "icon.svg",
+      "sha": "c29ae2c75693513a7f9afebce70138aace1cedcf",
+      "size": 240155
+    },
+    {
+      "file": "index.html",
+      "sha": "68b47779b181f0f3ad4a88b5285069f844e9ad9d",
+      "size": 9017
+    },
+    {
+      "file": "intake/index.html",
+      "sha": "4a6287f49c875fdcbc31d0a83b72f2278efb9b65",
+      "size": 7827
+    },
+    {
+      "file": "manifest.webmanifest",
+      "sha": "ceb5f5a0ce020389fc2607356edf4a3d0fc3410f",
+      "size": 1290
+    },
+    {
+      "file": "site.css",
+      "sha": "701752420f77619ba699389058abd1a0e04a3651",
+      "size": 6052
+    },
+    {
+      "file": "site.js",
+      "sha": "0f7f17dd89348f896dcb52cbef198f18bea3ee82",
+      "size": 2036
+    },
+    {
+      "file": "soukromi/index.html",
+      "sha": "9d001bc46637e3fcf5d681c3143d7ccc4218fe8f",
+      "size": 1753
+    },
+    {
+      "file": "sw.js",
+      "sha": "c0d2a1db514fe679688927e6a00085c554528f55",
+      "size": 1067
+    },
+    {
+      "file": "tarify/index.html",
+      "sha": "0f367f8043addec36285f8c071509a3f2707d3fc",
+      "size": 2306
+    },
+    {
+      "file": "vercel.json",
+      "sha": "465b2f687c2ac3d6e0fe6d80c56e2aef748e0e8b",
+      "size": 1166
+    }
+  ],
+  "source_deployment_id": "dpl_2aUsSYuJbmc6yt5wrvtg5JNfqud1",
+  "status": "prepared-not-deployed"
+}

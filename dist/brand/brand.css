@@ -1,0 +1,8 @@
+/* MistrFlow brand assets v1. Preserve existing application layouts. */
+a.logo{display:inline-flex;align-items:center;gap:10px;white-space:nowrap}
+a.logo .mf-wordmark{display:inline-block}
+a.logo .mf-mark{display:block;width:36px;height:36px;flex:0 0 36px;border-radius:9px;object-fit:contain}
+.brand span.logo{background:#203832 url('/brand/mark.png') center/cover no-repeat;color:transparent;font-size:0;overflow:hidden;flex-shrink:0;border-radius:9px}
+.mf-confirm-brand{display:flex;align-items:center;gap:12px;font:700 22px system-ui,sans-serif;color:#203832;margin:24px 0}
+.mf-confirm-brand img{width:44px;height:44px;border-radius:10px}
+@media(max-width:420px){a.logo{gap:7px}a.logo .mf-mark{width:30px;height:30px;flex-basis:30px}}

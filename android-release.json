@@ -1,0 +1,11 @@
+{
+  "platform": "android",
+  "channel": "debug",
+  "version_name": "0.1.1",
+  "version_code": 2,
+  "app_id": "cz.mistrflow.app",
+  "server_url": "https://mistrflow.vercel.app",
+  "download_url": "https://dxpzqepbkkhcbpqmnokn.supabase.co/storage/v1/object/public/mistrflow-releases/android/MistrFlow-0.1.1-debug.apk",
+  "sha256": "58969317e2fed0e18cae0f734ddeba1bd41eab98035866f0dc6d208c10fa9238",
+  "size_bytes": 3988598
+}
