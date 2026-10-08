@@ -44,7 +44,8 @@ Deno.serve(async(req:Request)=>{
   const pub=Deno.env.get("SUPABASE_ANON_KEY")||Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
   const secret=secretKey();
   const auth=req.headers.get("Authorization");
-  if(!url||!pub||!secret||!auth)return json({error:"Server configuration missing"},500);
+  if(!url||!pub||!secret)return json({error:"Server configuration missing"},500);
+  if(!auth?.startsWith("Bearer "))return json({error:"Not authenticated"},401);
 
   const userClient=createClient(url,pub,{global:{headers:{Authorization:auth}},auth:{persistSession:false,autoRefreshToken:false}});
   const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});

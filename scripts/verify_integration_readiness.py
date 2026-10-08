@@ -25,6 +25,10 @@ def scan(source: str) -> list[str]:
         failures.append("owner backend must keep a server-side error log")
     if 'error:"Správu platformy nyní nelze načíst."' not in source:
         failures.append("owner backend must return the approved generic error")
+    if 'if(!url||!pub||!secret)return json({error:"Server configuration missing"},500);' not in source:
+        failures.append("server configuration errors must exclude request authentication")
+    if 'if(!auth?.startsWith("Bearer "))return json({error:"Not authenticated"},401);' not in source:
+        failures.append("missing or malformed bearer authentication must return 401")
     required_volai_gate = (
         'ready:volaiIntegration?.status==="connected"&&volaiApiKeyPresent&&'
         'volaiWebhookSecretPresent&&volaiSenderPresent&&activeVolaiRoutes.length>0'
