@@ -37,5 +37,8 @@ jobs:
       - name: Test production verifier
         run: python3 scripts/test_verify_production.py
 
+      - name: Test security-header verifier
+        run: python3 scripts/test_verify_security_headers.py
+
       - name: Verify published Android APK
         run: python3 scripts/verify_published_apk.py
