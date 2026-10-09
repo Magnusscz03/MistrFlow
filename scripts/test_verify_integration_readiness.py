@@ -4,6 +4,7 @@ from verify_integration_readiness import (
     scan,
     scan_checkout_input,
     scan_error_boundary,
+    scan_owner_ai_input,
     scan_owner_input,
     scan_sales_inquiry_input,
     scan_stripe_webhook_input,
@@ -26,6 +27,22 @@ try {} catch(e) {
 '''
 
 SAFE_OWNER_AI = '''
+const MAX_OWNER_AI_BYTES=16384;
+async function readLimitedBody(req:Request,maxBytes:number){
+ const reader=req.body.getReader();
+ const {value}=await reader.read();
+ if(value.byteLength>maxBytes){await reader.cancel();return null}
+ return "{}";
+}
+Deno.serve(async req=>{
+ const auth=req.headers.get("authorization")||"";
+ if(!auth.startsWith("Bearer "))return json({error:"Přihlaste se do aplikace."},401);
+ if(roleError||!owner)return json({error:"Přístup pouze pro vlastníka platformy."},403);
+ const raw=await readLimitedBody(req,MAX_OWNER_AI_BYTES);
+ if(raw===null)return json({error:"Požadavek je příliš dlouhý."},413);
+ try{JSON.parse(raw)}catch{return json({error:"Neplatný požadavek."},400)}
+ return json({error:"AI služba ještě není připojená."},503);
+});
 try {} catch(e) {
  console.error("owner-ai",e);
  return json({error:"AI služba není dostupná."},500);
@@ -134,6 +151,28 @@ class IntegrationReadinessTests(unittest.TestCase):
             'console.error("owner-ai",e)',
             'error:"AI služba není dostupná."',
         ), [])
+
+    def test_owner_ai_input_guards_pass(self):
+        self.assertEqual(scan_owner_ai_input(SAFE_OWNER_AI), [])
+
+    def test_owner_ai_stream_limit_is_required(self):
+        failures = scan_owner_ai_input(SAFE_OWNER_AI.replace("await reader.cancel();", ""))
+        self.assertIn("owner AI body reads must stop after the byte limit", failures)
+
+    def test_owner_ai_auth_must_precede_body_read(self):
+        unsafe = SAFE_OWNER_AI.replace(
+            'if(!auth.startsWith("Bearer "))return json({error:"Přihlaste se do aplikace."},401);\n if(roleError||!owner)return json({error:"Přístup pouze pro vlastníka platformy."},403);\n const raw=await readLimitedBody(req,MAX_OWNER_AI_BYTES);',
+            'const raw=await readLimitedBody(req,MAX_OWNER_AI_BYTES);\n if(!auth.startsWith("Bearer "))return json({error:"Přihlaste se do aplikace."},401);\n if(roleError||!owner)return json({error:"Přístup pouze pro vlastníka platformy."},403);',
+        )
+        failures = scan_owner_ai_input(unsafe)
+        self.assertIn("owner AI authentication must run before reading the body", failures)
+
+    def test_owner_ai_malformed_json_is_rejected(self):
+        failures = scan_owner_ai_input(SAFE_OWNER_AI.replace(
+            'try{JSON.parse(raw)}catch{return json({error:"Neplatný požadavek."},400)}',
+            "const body={};",
+        ))
+        self.assertIn("malformed owner AI JSON must return 400", failures)
 
     def test_checkout_error_boundary_passes(self):
         self.assertEqual(scan_error_boundary(

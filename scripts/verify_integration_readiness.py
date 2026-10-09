@@ -96,6 +96,37 @@ def scan_owner_input(source: str) -> list[str]:
     return failures
 
 
+def scan_owner_ai_input(source: str) -> list[str]:
+    failures: list[str] = []
+    handler_marker = "Deno.serve(async req=>{"
+    handler = source[source.index(handler_marker):] if handler_marker in source else source
+    body_reader = "readLimitedBody(req,MAX_OWNER_AI_BYTES)"
+    body_rejection = 'if(raw===null)return json({error:"Požadavek je příliš dlouhý."},413)'
+    auth_rejection = 'if(!auth.startsWith("Bearer "))return json({error:"Přihlaste se do aplikace."},401)'
+    owner_rejection = 'if(roleError||!owner)return json({error:"Přístup pouze pro vlastníka platformy."},403)'
+    malformed_body = 'return json({error:"Neplatný požadavek."},400)'
+    unavailable_response = 'return json({error:"AI služba ještě není připojená.'
+    if "const MAX_OWNER_AI_BYTES=" not in source or body_reader not in handler:
+        failures.append("owner AI bodies must use a fixed byte limit")
+    if "value.byteLength" not in source or "reader.cancel()" not in source:
+        failures.append("owner AI body reads must stop after the byte limit")
+    if body_rejection not in handler:
+        failures.append("oversized owner AI bodies must return 413")
+    if "JSON.parse(raw)" not in handler or malformed_body not in handler:
+        failures.append("malformed owner AI JSON must return 400")
+    if body_reader in handler:
+        reader_offset = handler.index(body_reader)
+        for guard, message in (
+            (auth_rejection, "owner AI authentication must run before reading the body"),
+            (owner_rejection, "owner AI authorization must run before reading the body"),
+        ):
+            if guard not in handler or handler.index(guard) > reader_offset:
+                failures.append(message)
+        if unavailable_response in handler and reader_offset > handler.index(unavailable_response):
+            failures.append("owner AI input validation must run before provider handling")
+    return failures
+
+
 def scan_stripe_webhook_input(source: str) -> list[str]:
     failures: list[str] = []
     handler_marker = "Deno.serve(async(req:Request)=>{"
@@ -158,6 +189,7 @@ def main() -> int:
         'console.error("owner-ai",e)',
         'error:"AI služba není dostupná."',
     ))
+    failures.extend(scan_owner_ai_input(owner_ai_source))
     failures.extend(scan_error_boundary(
         checkout_source,
         "checkout backend",
