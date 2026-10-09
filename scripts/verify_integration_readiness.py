@@ -171,6 +171,7 @@ def scan_sales_inquiry_input(source: str) -> list[str]:
     handler = source[source.index(handler_marker):] if handler_marker in source else source
     body_reader = "readLimitedBody(req,MAX_INQUIRY_BYTES)"
     body_rejection = "if(raw===null||raw.length>6000)return json"
+    malformed_body = 'return json({error:"Neplatný požadavek."},400)'
     privileged_setup = "const admin=createClient("
     if "const MAX_INQUIRY_BYTES=" not in source or body_reader not in handler:
         failures.append("sales inquiry bodies must use a fixed byte limit")
@@ -178,9 +179,14 @@ def scan_sales_inquiry_input(source: str) -> list[str]:
         failures.append("sales inquiry body reads must stop after the byte limit")
     if body_rejection not in handler or "413" not in handler:
         failures.append("oversized sales inquiries must return 413")
+    if "JSON.parse(raw)" not in handler or malformed_body not in handler:
+        failures.append("malformed sales inquiry JSON must return 400")
     if privileged_setup in handler and body_rejection in handler:
         if handler.index(body_rejection) > handler.index(privileged_setup):
             failures.append("sales inquiry size rejection must run before privileged setup")
+    if "JSON.parse(raw)" in handler and privileged_setup in handler:
+        if handler.index("JSON.parse(raw)") > handler.index(privileged_setup):
+            failures.append("sales inquiry JSON validation must run before privileged setup")
     return failures
 
 
@@ -251,6 +257,12 @@ def main() -> int:
     failures.extend(scan_checkout_input(checkout_source))
     failures.extend(scan_stripe_webhook_input(stripe_webhook_source))
     failures.extend(scan_sales_inquiry_input(sales_inquiry_source))
+    failures.extend(scan_error_boundary(
+        sales_inquiry_source,
+        "sales inquiry backend",
+        'console.error("sales-inquiry",error)',
+        'error:"Zprávu nyní nelze uložit."',
+    ))
     failures.extend(scan_error_boundary(
         send_sms_source,
         "SMS backend",

@@ -104,7 +104,12 @@ async function readLimitedBody(req:Request,maxBytes:number){
 Deno.serve(async req=>{
  const raw=await readLimitedBody(req,MAX_INQUIRY_BYTES);
  if(raw===null||raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);
+ try{JSON.parse(raw)}catch{return json({error:"Neplatný požadavek."},400)}
  const admin=createClient(url,key);
+ try{}catch(error){
+  console.error("sales-inquiry",error);
+  return json({error:"Zprávu nyní nelze uložit."},500);
+ }
 });
 '''
 
@@ -266,6 +271,21 @@ class IntegrationReadinessTests(unittest.TestCase):
     def test_sales_inquiry_input_guards_pass(self):
         self.assertEqual(scan_sales_inquiry_input(SAFE_SALES_INQUIRY), [])
 
+    def test_sales_inquiry_malformed_json_is_rejected(self):
+        failures = scan_sales_inquiry_input(SAFE_SALES_INQUIRY.replace(
+            'try{JSON.parse(raw)}catch{return json({error:"Neplatný požadavek."},400)}',
+            "JSON.parse(raw)",
+        ))
+        self.assertIn("malformed sales inquiry JSON must return 400", failures)
+
+    def test_sales_inquiry_error_boundary_passes(self):
+        self.assertEqual(scan_error_boundary(
+            SAFE_SALES_INQUIRY,
+            "sales inquiry backend",
+            'console.error("sales-inquiry",error)',
+            'error:"Zprávu nyní nelze uložit."',
+        ), [])
+
     def test_sales_inquiry_byte_limit_is_required(self):
         failures = scan_sales_inquiry_input(SAFE_SALES_INQUIRY.replace(
             "const MAX_INQUIRY_BYTES=8192;",
@@ -275,7 +295,7 @@ class IntegrationReadinessTests(unittest.TestCase):
 
     def test_sales_inquiry_limit_must_precede_privileged_setup(self):
         unsafe = SAFE_SALES_INQUIRY.replace(
-            'if(raw===null||raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);\n const admin=createClient(url,key);',
+            'if(raw===null||raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);',
             'const admin=createClient(url,key);\n if(raw===null||raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);',
         )
         failures = scan_sales_inquiry_input(unsafe)

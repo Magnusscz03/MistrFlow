@@ -22,9 +22,12 @@ Deno.serve(async req=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
  if(req.method!=="POST")return json({error:"Method not allowed"},405);
  if(req.headers.get("origin") && req.headers.get("origin")!=="https://mistrflow.vercel.app")return json({error:"Nepovolený původ požadavku."},403);
+ const raw=await readLimitedBody(req,MAX_INQUIRY_BYTES);if(raw===null||raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);
+ let b:Record<string,unknown>;
+ try{const parsed=JSON.parse(raw);if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("invalid body");b=parsed}
+ catch{return json({error:"Neplatný požadavek."},400)}
  try{
-  const raw=await readLimitedBody(req,MAX_INQUIRY_BYTES);if(raw===null||raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);
-  const b=JSON.parse(raw);if(b.website)return json({ok:true});
+  if(b.website)return json({ok:true});
   const name=String(b.name||"").trim(),email=String(b.email||"").trim().toLowerCase(),company=String(b.company||"").trim(),message=String(b.message||"").trim(),plan=String(b.plan_code||"start");
   if(name.length<2||name.length>120||company.length>160||email.length>254||!/^\S+@\S+\.\S+$/.test(email)||message.length>2000||!["start","pro","firma"].includes(plan)||b.consent!==true)return json({error:"Zkontrolujte jméno, e-mail a souhlas s kontaktem."},400);
   const admin=createClient(Deno.env.get("SUPABASE_URL")!,key(),{auth:{persistSession:false,autoRefreshToken:false}});
@@ -38,6 +41,6 @@ Deno.serve(async req=>{
   const {error}=await admin.from("sales_inquiries").insert({name,email,company,message,plan_code:plan,ip_hash:ipHash});
   if(error)return json({error:"Zprávu se nepodařilo uložit. Zkuste to znovu."},503);
   return json({ok:true});
- }catch{return json({error:"Neplatný požadavek."},400)}
+ }catch(error){console.error("sales-inquiry",error);return json({error:"Zprávu nyní nelze uložit."},500)}
 });
 
