@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import {createClient} from "npm:@supabase/supabase-js@2.57.4";
 
+const MAX_OWNER_DATA_BYTES=16384;
+
 const TABLES=[
 "sales_inquiries","ai_change_requests","ai_usage_events","app_releases","appointments","attachments","audit_logs","calls","customers",
 "intake_sessions","integrations","invoice_items","invoice_sequences","invoices","lead_notes","leads",
@@ -36,6 +38,20 @@ async function authCount(admin:any){
 }
 function uuidish(v:string){return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)}
 function phone(v:string){return /^\+[1-9]\d{7,14}$/.test(v)}
+async function readLimitedBody(req:Request,maxBytes:number){
+ const declared=req.headers.get("content-length");
+ if(declared!==null){const bytes=Number(declared);if(Number.isFinite(bytes)&&bytes>maxBytes)return null}
+ if(!req.body)return "";
+ const reader=req.body.getReader(),chunks:Uint8Array[]=[];let total=0;
+ while(true){
+  const {done,value}=await reader.read();if(done)break;
+  total+=value.byteLength;if(total>maxBytes){await reader.cancel();return null}
+  chunks.push(value);
+ }
+ const combined=new Uint8Array(total);let offset=0;
+ for(const chunk of chunks){combined.set(chunk,offset);offset+=chunk.byteLength}
+ return new TextDecoder().decode(combined);
+}
 
 Deno.serve(async(req:Request)=>{
  try{
@@ -54,10 +70,8 @@ Deno.serve(async(req:Request)=>{
   const {data:pa}=await admin.from("platform_admins").select("user_id").eq("user_id",user.id).maybeSingle();
   if(!pa?.user_id)return json({error:"Platform Owner only"},403);
 
-  const declaredLength=Number(req.headers.get("content-length")||0);
-  if(Number.isFinite(declaredLength)&&declaredLength>16384)return json({error:"Požadavek je příliš dlouhý."},413);
-  const rawBody=await req.text();
-  if(new TextEncoder().encode(rawBody).byteLength>16384)return json({error:"Požadavek je příliš dlouhý."},413);
+  const rawBody=await readLimitedBody(req,MAX_OWNER_DATA_BYTES);
+  if(rawBody===null)return json({error:"Požadavek je příliš dlouhý."},413);
   let body:Record<string,unknown>;
   try{
    const parsed=JSON.parse(rawBody);

@@ -80,15 +80,21 @@ def scan_checkout_input(source: str) -> list[str]:
 def scan_owner_input(source: str) -> list[str]:
     failures: list[str] = []
     summary_branch = 'if(action==="summary")'
-    body_limit = 'byteLength>16384)return json({error:"Požadavek je příliš dlouhý."},413)'
+    body_reader = "readLimitedBody(req,MAX_OWNER_DATA_BYTES)"
+    body_limit = 'if(rawBody===null)return json({error:"Požadavek je příliš dlouhý."},413)'
     malformed_body = 'return json({error:"Neplatný požadavek."},400)'
+    if "const MAX_OWNER_DATA_BYTES=" not in source or body_reader not in source:
+        failures.append("owner request bodies must use a fixed byte limit")
+    if "value.byteLength" not in source or "reader.cancel()" not in source:
+        failures.append("owner body reads must stop after the byte limit")
     if body_limit not in source:
-        failures.append("owner request bodies must be capped before summary queries")
+        failures.append("oversized owner requests must return 413")
     if malformed_body not in source or "JSON.parse(rawBody)" not in source:
         failures.append("malformed owner JSON must return 400")
     if summary_branch in source:
         summary_offset = source.index(summary_branch)
         for guard, message in (
+            (body_reader, "owner body read must run before summary queries"),
             (body_limit, "owner body limit must run before summary queries"),
             (malformed_body, "owner JSON validation must run before summary queries"),
         ):

@@ -13,12 +13,19 @@ from verify_integration_readiness import (
 
 
 SAFE = '''
+const MAX_OWNER_DATA_BYTES=16384;
+async function readLimitedBody(req:Request,maxBytes:number){
+ const reader=req.body.getReader();
+ const {value}=await reader.read();
+ if(value.byteLength>maxBytes){await reader.cancel();return null}
+ return "{}";
+}
 const volaiSenderPresent=false;
 ready:volaiIntegration?.status==="connected"&&volaiApiKeyPresent&&volaiWebhookSecretPresent&&volaiSenderPresent&&activeVolaiRoutes.length>0
 if(!url||!pub||!secret)return json({error:"Server configuration missing"},500);
 if(!auth?.startsWith("Bearer "))return json({error:"Not authenticated"},401);
-const rawBody=await req.text();
-if(new TextEncoder().encode(rawBody).byteLength>16384)return json({error:"Požadavek je příliš dlouhý."},413);
+const rawBody=await readLimitedBody(req,MAX_OWNER_DATA_BYTES);
+if(rawBody===null)return json({error:"Požadavek je příliš dlouhý."},413);
 try{JSON.parse(rawBody)}catch{return json({error:"Neplatný požadavek."},400)}
 if(action==="summary")return json({});
 try {} catch(e) {
@@ -126,10 +133,14 @@ class IntegrationReadinessTests(unittest.TestCase):
 
     def test_owner_body_limit_is_required(self):
         failures = scan_owner_input(SAFE.replace(
-            'if(new TextEncoder().encode(rawBody).byteLength>16384)return json({error:"Požadavek je příliš dlouhý."},413);',
+            'if(rawBody===null)return json({error:"Požadavek je příliš dlouhý."},413);',
             "",
         ))
-        self.assertIn("owner request bodies must be capped before summary queries", failures)
+        self.assertIn("oversized owner requests must return 413", failures)
+
+    def test_owner_stream_limit_is_required(self):
+        failures = scan_owner_input(SAFE.replace("await reader.cancel();", ""))
+        self.assertIn("owner body reads must stop after the byte limit", failures)
 
     def test_owner_malformed_json_is_rejected(self):
         failures = scan_owner_input(SAFE.replace(
