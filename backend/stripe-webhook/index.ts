@@ -152,7 +152,9 @@ async function updateStripeIntegration(admin:any,orgId:string,event:any){
 
 Deno.serve(async(req:Request)=>{
   if(req.method!=="POST")return new Response("method not allowed",{status:405});
-  const raw=await readWebhookBody(req,MAX_WEBHOOK_BYTES);
+  let raw:string|null;
+  try{raw=await readWebhookBody(req,MAX_WEBHOOK_BYTES)}
+  catch(e){console.error("stripe-webhook",e);return new Response("processing failed",{status:500})}
   if(raw===null)return new Response("payload too large",{status:413});
   const admin=db();
   const webhookSecret=await vaultGet(admin,"stripe_webhook_secret");

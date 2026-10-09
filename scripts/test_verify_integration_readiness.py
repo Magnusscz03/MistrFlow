@@ -85,7 +85,9 @@ async function readWebhookBody(req:Request,maxBytes:number){
  return "{}";
 }
 Deno.serve(async(req:Request)=>{
- const raw=await readWebhookBody(req,MAX_WEBHOOK_BYTES);
+ let raw:string|null;
+ try{raw=await readWebhookBody(req,MAX_WEBHOOK_BYTES)}
+ catch(e){console.error("stripe-webhook",e);return new Response("processing failed",{status:500})}
  if(raw===null)return new Response("payload too large",{status:413});
  const admin=db();
  if(!(await verifyStripe(raw,req.headers.get("stripe-signature"),webhookSecret)))return new Response("invalid signature",{status:401});
@@ -253,6 +255,13 @@ class IntegrationReadinessTests(unittest.TestCase):
             "",
         ))
         self.assertIn("Stripe webhook bodies must use a fixed byte limit", failures)
+
+    def test_stripe_webhook_body_read_failures_are_handled(self):
+        failures = scan_stripe_webhook_input(SAFE_STRIPE_WEBHOOK.replace(
+            "try{raw=await readWebhookBody(req,MAX_WEBHOOK_BYTES)}",
+            "raw=await readWebhookBody(req,MAX_WEBHOOK_BYTES)",
+        ))
+        self.assertIn("Stripe webhook body read failures must be handled", failures)
 
     def test_stripe_webhook_limit_must_precede_privileged_setup(self):
         unsafe = SAFE_STRIPE_WEBHOOK.replace(

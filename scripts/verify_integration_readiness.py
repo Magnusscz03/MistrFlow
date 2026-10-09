@@ -146,6 +146,7 @@ def scan_stripe_webhook_input(source: str) -> list[str]:
     handler = source[source.index(handler_marker):] if handler_marker in source else source
     body_reader = "readWebhookBody(req,MAX_WEBHOOK_BYTES)"
     body_rejection = 'if(raw===null)return new Response("payload too large",{status:413})'
+    guarded_body_read = "try{raw=await readWebhookBody(req,MAX_WEBHOOK_BYTES)}"
     privileged_setup = "const admin=db();"
     signature_check = "if(!(await verifyStripe(raw,"
     json_parse = "JSON.parse(raw)"
@@ -153,6 +154,8 @@ def scan_stripe_webhook_input(source: str) -> list[str]:
         failures.append("Stripe webhook bodies must use a fixed byte limit")
     if "value.byteLength" not in source or "reader.cancel()" not in source:
         failures.append("Stripe webhook body reads must stop after the byte limit")
+    if guarded_body_read not in handler:
+        failures.append("Stripe webhook body read failures must be handled")
     if body_rejection not in handler:
         failures.append("oversized Stripe webhook bodies must return 413")
     if privileged_setup in handler and body_rejection in handler:
