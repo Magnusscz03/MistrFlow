@@ -5,6 +5,7 @@ from verify_integration_readiness import (
     scan_checkout_input,
     scan_error_boundary,
     scan_owner_input,
+    scan_stripe_webhook_input,
 )
 
 
@@ -40,6 +41,23 @@ try {} catch(e) {
  console.error("create-checkout",e);
  return json({error:"Platbu nyní nelze připravit."},500);
 }
+'''
+
+SAFE_STRIPE_WEBHOOK = '''
+const MAX_WEBHOOK_BYTES=1024*1024;
+async function readWebhookBody(req:Request,maxBytes:number){
+ const reader=req.body.getReader();
+ const {value}=await reader.read();
+ if(value.byteLength>maxBytes){await reader.cancel();return null}
+ return "{}";
+}
+Deno.serve(async(req:Request)=>{
+ const raw=await readWebhookBody(req,MAX_WEBHOOK_BYTES);
+ if(raw===null)return new Response("payload too large",{status:413});
+ const admin=db();
+ if(!(await verifyStripe(raw,req.headers.get("stripe-signature"),webhookSecret)))return new Response("invalid signature",{status:401});
+ const event=JSON.parse(raw);
+});
 '''
 
 
@@ -118,6 +136,32 @@ class IntegrationReadinessTests(unittest.TestCase):
             "",
         ))
         self.assertIn("checkout request bodies must be capped before privileged queries", failures)
+
+    def test_stripe_webhook_input_guards_pass(self):
+        self.assertEqual(scan_stripe_webhook_input(SAFE_STRIPE_WEBHOOK), [])
+
+    def test_stripe_webhook_body_limit_is_required(self):
+        failures = scan_stripe_webhook_input(SAFE_STRIPE_WEBHOOK.replace(
+            "const MAX_WEBHOOK_BYTES=1024*1024;",
+            "",
+        ))
+        self.assertIn("Stripe webhook bodies must use a fixed byte limit", failures)
+
+    def test_stripe_webhook_limit_must_precede_privileged_setup(self):
+        unsafe = SAFE_STRIPE_WEBHOOK.replace(
+            'if(raw===null)return new Response("payload too large",{status:413});\n const admin=db();',
+            'const admin=db();\n if(raw===null)return new Response("payload too large",{status:413});',
+        )
+        failures = scan_stripe_webhook_input(unsafe)
+        self.assertIn("Stripe webhook size rejection must run before privileged setup", failures)
+
+    def test_stripe_webhook_signature_must_precede_json(self):
+        unsafe = SAFE_STRIPE_WEBHOOK.replace(
+            'if(!(await verifyStripe(raw,req.headers.get("stripe-signature"),webhookSecret)))return new Response("invalid signature",{status:401});\n const event=JSON.parse(raw);',
+            'const event=JSON.parse(raw);\n if(!(await verifyStripe(raw,req.headers.get("stripe-signature"),webhookSecret)))return new Response("invalid signature",{status:401});',
+        )
+        failures = scan_stripe_webhook_input(unsafe)
+        self.assertIn("Stripe webhook signatures must be checked before JSON parsing", failures)
 
     def test_checkout_organization_validation_is_required(self):
         failures = scan_checkout_input(SAFE_CHECKOUT.replace(

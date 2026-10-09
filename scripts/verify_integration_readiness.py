@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OWNER_BACKEND = ROOT / "backend/platform-owner-data/index.ts"
 OWNER_AI_BACKEND = ROOT / "backend/owner-ai/index.ts"
 CHECKOUT_BACKEND = ROOT / "backend/create-checkout/index.ts"
+STRIPE_WEBHOOK_BACKEND = ROOT / "backend/stripe-webhook/index.ts"
 
 
 def scan(source: str) -> list[str]:
@@ -94,11 +95,37 @@ def scan_owner_input(source: str) -> list[str]:
     return failures
 
 
+def scan_stripe_webhook_input(source: str) -> list[str]:
+    failures: list[str] = []
+    handler_marker = "Deno.serve(async(req:Request)=>{"
+    handler = source[source.index(handler_marker):] if handler_marker in source else source
+    body_reader = "readWebhookBody(req,MAX_WEBHOOK_BYTES)"
+    body_rejection = 'if(raw===null)return new Response("payload too large",{status:413})'
+    privileged_setup = "const admin=db();"
+    signature_check = "if(!(await verifyStripe(raw,"
+    json_parse = "JSON.parse(raw)"
+    if "const MAX_WEBHOOK_BYTES=" not in source or body_reader not in handler:
+        failures.append("Stripe webhook bodies must use a fixed byte limit")
+    if "value.byteLength" not in source or "reader.cancel()" not in source:
+        failures.append("Stripe webhook body reads must stop after the byte limit")
+    if body_rejection not in handler:
+        failures.append("oversized Stripe webhook bodies must return 413")
+    if privileged_setup in handler and body_rejection in handler:
+        if handler.index(body_rejection) > handler.index(privileged_setup):
+            failures.append("Stripe webhook size rejection must run before privileged setup")
+    if signature_check not in handler or json_parse not in handler:
+        failures.append("Stripe webhook signatures must be checked before JSON parsing")
+    elif handler.index(signature_check) > handler.index(json_parse):
+        failures.append("Stripe webhook signatures must be checked before JSON parsing")
+    return failures
+
+
 def main() -> int:
     try:
         source = OWNER_BACKEND.read_text(encoding="utf-8")
         owner_ai_source = OWNER_AI_BACKEND.read_text(encoding="utf-8")
         checkout_source = CHECKOUT_BACKEND.read_text(encoding="utf-8")
+        stripe_webhook_source = STRIPE_WEBHOOK_BACKEND.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
         print(f"FAIL: cannot read {OWNER_BACKEND.relative_to(ROOT)}: {error}")
         return 1
@@ -117,6 +144,7 @@ def main() -> int:
         'error:"Platbu nyní nelze připravit."',
     ))
     failures.extend(scan_checkout_input(checkout_source))
+    failures.extend(scan_stripe_webhook_input(stripe_webhook_source))
     for failure in failures:
         print("FAIL:", failure)
     print(f"Privileged backend readiness checked; {len(failures)} failures.")

@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import {createClient} from "npm:@supabase/supabase-js@2.57.4";
 
 const PROCESSING_TTL_MS=120000;
+const MAX_WEBHOOK_BYTES=1024*1024;
 const HANDLED=new Set([
   "charge.succeeded","charge.refunded","payout.paid",
   "customer.subscription.created","customer.subscription.updated","customer.subscription.deleted"
@@ -26,6 +27,27 @@ function secureEqual(a:string,b:string){
   if(a.length!==b.length)return false;
   let out=0;for(let i=0;i<a.length;i++)out|=a.charCodeAt(i)^b.charCodeAt(i);
   return out===0;
+}
+async function readWebhookBody(req:Request,maxBytes:number){
+  const declared=req.headers.get("content-length");
+  if(declared!==null){
+    const bytes=Number(declared);
+    if(Number.isFinite(bytes)&&bytes>maxBytes)return null;
+  }
+  if(!req.body)return "";
+  const reader=req.body.getReader(),chunks:Uint8Array[]=[];
+  let total=0;
+  while(true){
+    const {done,value}=await reader.read();
+    if(done)break;
+    total+=value.byteLength;
+    if(total>maxBytes){await reader.cancel();return null}
+    chunks.push(value);
+  }
+  const combined=new Uint8Array(total);
+  let offset=0;
+  for(const chunk of chunks){combined.set(chunk,offset);offset+=chunk.byteLength}
+  return new TextDecoder().decode(combined);
 }
 async function verifyStripe(raw:string,header:string|null,secret:string){
   if(!header)return false;
@@ -130,12 +152,13 @@ async function updateStripeIntegration(admin:any,orgId:string,event:any){
 
 Deno.serve(async(req:Request)=>{
   if(req.method!=="POST")return new Response("method not allowed",{status:405});
+  const raw=await readWebhookBody(req,MAX_WEBHOOK_BYTES);
+  if(raw===null)return new Response("payload too large",{status:413});
   const admin=db();
   const webhookSecret=await vaultGet(admin,"stripe_webhook_secret");
   const stripeKey=await vaultGet(admin,"stripe_secret_key");
   if(!webhookSecret||!stripeKey)return new Response("stripe not configured",{status:503});
 
-  const raw=await req.text();
   if(!(await verifyStripe(raw,req.headers.get("stripe-signature"),webhookSecret))){
     return new Response("invalid signature",{status:401});
   }
