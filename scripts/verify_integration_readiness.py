@@ -12,6 +12,7 @@ OWNER_AI_BACKEND = ROOT / "backend/owner-ai/index.ts"
 CHECKOUT_BACKEND = ROOT / "backend/create-checkout/index.ts"
 STRIPE_WEBHOOK_BACKEND = ROOT / "backend/stripe-webhook/index.ts"
 SALES_INQUIRY_BACKEND = ROOT / "backend/sales-inquiry/index.ts"
+SEND_SMS_BACKEND = ROOT / "backend/send-sms/index.ts"
 
 
 def scan(source: str) -> list[str]:
@@ -171,6 +172,44 @@ def scan_sales_inquiry_input(source: str) -> list[str]:
     return failures
 
 
+def scan_send_sms_input(source: str) -> list[str]:
+    failures: list[str] = []
+    body_reader = "readLimitedBody(req,MAX_SMS_BYTES)"
+    body_rejection = 'if(raw===null)return json({error:"Požadavek je příliš dlouhý."},413)'
+    malformed_body = 'return json({error:"Neplatný požadavek."},400)'
+    org_guard = 'if(!uuidPattern.test(organizationId))return json({error:"Neplatná firma."},400)'
+    membership_scope = '.eq("user_id",user.id).eq("organization_id",organizationId)'
+    integration_scope = '.eq("organization_id",organizationId).eq("provider","volai")'
+    provider_call = 'fetch("https://volai.cz/v1/messages"'
+    connected_gate = 'integration?.status!=="connected"||!apiKey'
+    if "const MAX_SMS_BYTES=" not in source or body_reader not in source:
+        failures.append("SMS request bodies must use a fixed byte limit")
+    if "value.byteLength" not in source or "reader.cancel()" not in source:
+        failures.append("SMS body reads must stop after the byte limit")
+    if body_rejection not in source:
+        failures.append("oversized SMS requests must return 413")
+    if "JSON.parse(raw)" not in source or malformed_body not in source:
+        failures.append("malformed SMS JSON must return 400")
+    if org_guard not in source:
+        failures.append("SMS organization IDs must be validated")
+    if membership_scope not in source:
+        failures.append("SMS membership lookup must target the requested organization")
+    if integration_scope not in source:
+        failures.append("SMS integration lookup must target the requested organization")
+    if provider_call in source:
+        provider_offset = source.index(provider_call)
+        for guard, message in (
+            (body_rejection, "SMS body limit must run before the provider call"),
+            (org_guard, "SMS organization validation must run before the provider call"),
+            (membership_scope, "SMS membership check must run before the provider call"),
+            (integration_scope, "SMS integration check must run before the provider call"),
+            (connected_gate, "SMS connected-state gate must run before the provider call"),
+        ):
+            if guard not in source or source.index(guard) > provider_offset:
+                failures.append(message)
+    return failures
+
+
 def main() -> int:
     try:
         source = OWNER_BACKEND.read_text(encoding="utf-8")
@@ -178,6 +217,7 @@ def main() -> int:
         checkout_source = CHECKOUT_BACKEND.read_text(encoding="utf-8")
         stripe_webhook_source = STRIPE_WEBHOOK_BACKEND.read_text(encoding="utf-8")
         sales_inquiry_source = SALES_INQUIRY_BACKEND.read_text(encoding="utf-8")
+        send_sms_source = SEND_SMS_BACKEND.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
         print(f"FAIL: cannot read {OWNER_BACKEND.relative_to(ROOT)}: {error}")
         return 1
@@ -199,6 +239,13 @@ def main() -> int:
     failures.extend(scan_checkout_input(checkout_source))
     failures.extend(scan_stripe_webhook_input(stripe_webhook_source))
     failures.extend(scan_sales_inquiry_input(sales_inquiry_source))
+    failures.extend(scan_error_boundary(
+        send_sms_source,
+        "SMS backend",
+        'console.error("send-sms",error)',
+        'error:"SMS nyní nelze odeslat."',
+    ))
+    failures.extend(scan_send_sms_input(send_sms_source))
     for failure in failures:
         print("FAIL:", failure)
     print(f"Privileged backend readiness checked; {len(failures)} failures.")

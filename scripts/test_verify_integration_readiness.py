@@ -7,6 +7,7 @@ from verify_integration_readiness import (
     scan_owner_ai_input,
     scan_owner_input,
     scan_sales_inquiry_input,
+    scan_send_sms_input,
     scan_stripe_webhook_input,
 )
 
@@ -91,6 +92,28 @@ Deno.serve(async req=>{
  if(raw===null||raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);
  const admin=createClient(url,key);
 });
+'''
+
+SAFE_SEND_SMS = '''
+const MAX_SMS_BYTES=8192;
+async function readLimitedBody(req:Request,maxBytes:number){
+ const reader=req.body.getReader();
+ const {value}=await reader.read();
+ if(value.byteLength>maxBytes){await reader.cancel();return null}
+ return "{}";
+}
+const raw=await readLimitedBody(req,MAX_SMS_BYTES);
+if(raw===null)return json({error:"Požadavek je příliš dlouhý."},413);
+try{JSON.parse(raw)}catch{return json({error:"Neplatný požadavek."},400)}
+if(!uuidPattern.test(organizationId))return json({error:"Neplatná firma."},400);
+client.from("organization_memberships").eq("user_id",user.id).eq("organization_id",organizationId);
+client.from("integrations").eq("organization_id",organizationId).eq("provider","volai");
+if(integration?.status!=="connected"||!apiKey)return json({},503);
+fetch("https://volai.cz/v1/messages");
+try {} catch(error) {
+ console.error("send-sms",error);
+ return json({error:"SMS nyní nelze odeslat."},500);
+}
 '''
 
 
@@ -235,6 +258,35 @@ class IntegrationReadinessTests(unittest.TestCase):
         )
         failures = scan_sales_inquiry_input(unsafe)
         self.assertIn("sales inquiry size rejection must run before privileged setup", failures)
+
+    def test_send_sms_guards_pass(self):
+        self.assertEqual(scan_send_sms_input(SAFE_SEND_SMS), [])
+
+    def test_send_sms_requires_stream_limit(self):
+        failures = scan_send_sms_input(SAFE_SEND_SMS.replace("await reader.cancel();", ""))
+        self.assertIn("SMS body reads must stop after the byte limit", failures)
+
+    def test_send_sms_requires_explicit_organization_membership(self):
+        failures = scan_send_sms_input(SAFE_SEND_SMS.replace(
+            '.eq("user_id",user.id).eq("organization_id",organizationId)',
+            '.eq("user_id",user.id).limit(1)',
+        ))
+        self.assertIn("SMS membership lookup must target the requested organization", failures)
+
+    def test_send_sms_integration_must_be_tenant_scoped(self):
+        failures = scan_send_sms_input(SAFE_SEND_SMS.replace(
+            '.eq("organization_id",organizationId).eq("provider","volai")',
+            '.eq("provider","volai")',
+        ))
+        self.assertIn("SMS integration lookup must target the requested organization", failures)
+
+    def test_send_sms_connected_gate_must_precede_provider(self):
+        unsafe = SAFE_SEND_SMS.replace(
+            'if(integration?.status!=="connected"||!apiKey)return json({},503);\nfetch("https://volai.cz/v1/messages");',
+            'fetch("https://volai.cz/v1/messages");\nif(integration?.status!=="connected"||!apiKey)return json({},503);',
+        )
+        failures = scan_send_sms_input(unsafe)
+        self.assertIn("SMS connected-state gate must run before the provider call", failures)
 
     def test_checkout_organization_validation_is_required(self):
         failures = scan_checkout_input(SAFE_CHECKOUT.replace(
