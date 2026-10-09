@@ -54,7 +54,16 @@ Deno.serve(async(req:Request)=>{
   const {data:pa}=await admin.from("platform_admins").select("user_id").eq("user_id",user.id).maybeSingle();
   if(!pa?.user_id)return json({error:"Platform Owner only"},403);
 
-  const body=await req.json().catch(()=>({}));
+  const declaredLength=Number(req.headers.get("content-length")||0);
+  if(Number.isFinite(declaredLength)&&declaredLength>16384)return json({error:"Požadavek je příliš dlouhý."},413);
+  const rawBody=await req.text();
+  if(new TextEncoder().encode(rawBody).byteLength>16384)return json({error:"Požadavek je příliš dlouhý."},413);
+  let body:Record<string,unknown>;
+  try{
+   const parsed=JSON.parse(rawBody);
+   if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))return json({error:"Neplatný požadavek."},400);
+   body=parsed as Record<string,unknown>;
+  }catch{return json({error:"Neplatný požadavek."},400)}
   const action=String(body.action||"summary");
 
   if(action==="tables")return json({tables:["auth_users",...TABLES]});

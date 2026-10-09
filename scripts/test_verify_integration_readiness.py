@@ -1,6 +1,11 @@
 import unittest
 
-from verify_integration_readiness import scan, scan_checkout_input, scan_error_boundary
+from verify_integration_readiness import (
+    scan,
+    scan_checkout_input,
+    scan_error_boundary,
+    scan_owner_input,
+)
 
 
 SAFE = '''
@@ -8,6 +13,10 @@ const volaiSenderPresent=false;
 ready:volaiIntegration?.status==="connected"&&volaiApiKeyPresent&&volaiWebhookSecretPresent&&volaiSenderPresent&&activeVolaiRoutes.length>0
 if(!url||!pub||!secret)return json({error:"Server configuration missing"},500);
 if(!auth?.startsWith("Bearer "))return json({error:"Not authenticated"},401);
+const rawBody=await req.text();
+if(new TextEncoder().encode(rawBody).byteLength>16384)return json({error:"Požadavek je příliš dlouhý."},413);
+try{JSON.parse(rawBody)}catch{return json({error:"Neplatný požadavek."},400)}
+if(action==="summary")return json({});
 try {} catch(e) {
  console.error("platform-owner-data",e);
  return json({error:"Správu platformy nyní nelze načíst."},500);
@@ -37,6 +46,23 @@ try {} catch(e) {
 class IntegrationReadinessTests(unittest.TestCase):
     def test_safe_backend_passes(self):
         self.assertEqual(scan(SAFE), [])
+
+    def test_owner_input_guards_pass(self):
+        self.assertEqual(scan_owner_input(SAFE), [])
+
+    def test_owner_body_limit_is_required(self):
+        failures = scan_owner_input(SAFE.replace(
+            'if(new TextEncoder().encode(rawBody).byteLength>16384)return json({error:"Požadavek je příliš dlouhý."},413);',
+            "",
+        ))
+        self.assertIn("owner request bodies must be capped before summary queries", failures)
+
+    def test_owner_malformed_json_is_rejected(self):
+        failures = scan_owner_input(SAFE.replace(
+            'try{JSON.parse(rawBody)}catch{return json({error:"Neplatný požadavek."},400)}',
+            "const body={};",
+        ))
+        self.assertIn("malformed owner JSON must return 400", failures)
 
     def test_hard_coded_sender_is_rejected(self):
         failures = scan(SAFE.replace("volaiSenderPresent=false", "volaiSenderPresent=true"))

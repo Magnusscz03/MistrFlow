@@ -74,6 +74,26 @@ def scan_checkout_input(source: str) -> list[str]:
     return failures
 
 
+def scan_owner_input(source: str) -> list[str]:
+    failures: list[str] = []
+    summary_branch = 'if(action==="summary")'
+    body_limit = 'byteLength>16384)return json({error:"Požadavek je příliš dlouhý."},413)'
+    malformed_body = 'return json({error:"Neplatný požadavek."},400)'
+    if body_limit not in source:
+        failures.append("owner request bodies must be capped before summary queries")
+    if malformed_body not in source or "JSON.parse(rawBody)" not in source:
+        failures.append("malformed owner JSON must return 400")
+    if summary_branch in source:
+        summary_offset = source.index(summary_branch)
+        for guard, message in (
+            (body_limit, "owner body limit must run before summary queries"),
+            (malformed_body, "owner JSON validation must run before summary queries"),
+        ):
+            if guard in source and source.index(guard) > summary_offset:
+                failures.append(message)
+    return failures
+
+
 def main() -> int:
     try:
         source = OWNER_BACKEND.read_text(encoding="utf-8")
@@ -83,6 +103,7 @@ def main() -> int:
         print(f"FAIL: cannot read {OWNER_BACKEND.relative_to(ROOT)}: {error}")
         return 1
     failures = scan(source)
+    failures.extend(scan_owner_input(source))
     failures.extend(scan_error_boundary(
         owner_ai_source,
         "owner AI backend",
