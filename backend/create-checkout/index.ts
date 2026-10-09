@@ -1,8 +1,23 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import {createClient} from "npm:@supabase/supabase-js@2.57.4";
+const MAX_CHECKOUT_BYTES=4096;
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
 function secret(){const k=Deno.env.get("SUPABASE_SECRET_KEY")||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");if(k)return k;try{return JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")||"{}").default}catch{return ""}}
 const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+async function readLimitedBody(req:Request,maxBytes:number){
+ const declared=req.headers.get("content-length");
+ if(declared!==null){const bytes=Number(declared);if(Number.isFinite(bytes)&&bytes>maxBytes)return null}
+ if(!req.body)return "";
+ const reader=req.body.getReader(),chunks:Uint8Array[]=[];let total=0;
+ while(true){
+  const {done,value}=await reader.read();if(done)break;
+  total+=value.byteLength;if(total>maxBytes){await reader.cancel();return null}
+  chunks.push(value);
+ }
+ const combined=new Uint8Array(total);let offset=0;
+ for(const chunk of chunks){combined.set(chunk,offset);offset+=chunk.byteLength}
+ return new TextDecoder().decode(combined);
+}
 Deno.serve(async req=>{
  if(req.method!=="POST")return json({error:"Method not allowed"},405);
  try{
@@ -11,10 +26,8 @@ Deno.serve(async req=>{
   const admin=createClient(Deno.env.get("SUPABASE_URL")!,secret(),{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:{user},error:authError}=await admin.auth.getUser(auth.slice(7));
   if(authError||!user)return json({error:"Přihlášení vypršelo."},401);
-  const declaredLength=Number(req.headers.get("content-length")||0);
-  if(Number.isFinite(declaredLength)&&declaredLength>4096)return json({error:"Požadavek je příliš dlouhý."},413);
-  const rawBody=await req.text();
-  if(new TextEncoder().encode(rawBody).byteLength>4096)return json({error:"Požadavek je příliš dlouhý."},413);
+  const rawBody=await readLimitedBody(req,MAX_CHECKOUT_BYTES);
+  if(rawBody===null)return json({error:"Požadavek je příliš dlouhý."},413);
   let b:Record<string,unknown>;
   try{const parsed=JSON.parse(rawBody);if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))return json({error:"Neplatný požadavek."},400);b=parsed as Record<string,unknown>}catch{return json({error:"Neplatný požadavek."},400)}
   const orgId=String(b.organization_id||"");

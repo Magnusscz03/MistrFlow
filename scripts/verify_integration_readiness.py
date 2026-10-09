@@ -57,11 +57,16 @@ def scan_error_boundary(source: str, label: str, log_marker: str, generic_error:
 def scan_checkout_input(source: str) -> list[str]:
     failures: list[str] = []
     membership_query = 'admin.from("organization_memberships")'
-    body_limit = 'byteLength>4096)return json({error:"Požadavek je příliš dlouhý."},413)'
+    body_reader = "readLimitedBody(req,MAX_CHECKOUT_BYTES)"
+    body_limit = 'if(rawBody===null)return json({error:"Požadavek je příliš dlouhý."},413)'
     malformed_body = 'return json({error:"Neplatný požadavek."},400)'
     uuid_guard = 'if(!uuidPattern.test(orgId))return json({error:"Neplatná firma."},400);'
+    if "const MAX_CHECKOUT_BYTES=" not in source or body_reader not in source:
+        failures.append("checkout request bodies must use a fixed byte limit")
+    if "value.byteLength" not in source or "reader.cancel()" not in source:
+        failures.append("checkout body reads must stop after the byte limit")
     if body_limit not in source:
-        failures.append("checkout request bodies must be capped before privileged queries")
+        failures.append("oversized checkout requests must return 413")
     if malformed_body not in source or "JSON.parse(rawBody)" not in source:
         failures.append("malformed checkout JSON must return 400")
     if uuid_guard not in source:
@@ -69,6 +74,7 @@ def scan_checkout_input(source: str) -> list[str]:
     if membership_query in source:
         membership_offset = source.index(membership_query)
         for guard, message in (
+            (body_reader, "checkout body read must run before membership lookup"),
             (body_limit, "checkout body limit must run before membership lookup"),
             (uuid_guard, "checkout organization validation must run before membership lookup"),
         ):

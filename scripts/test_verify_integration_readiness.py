@@ -58,8 +58,15 @@ try {} catch(e) {
 '''
 
 SAFE_CHECKOUT = '''
-const rawBody=await req.text();
-if(new TextEncoder().encode(rawBody).byteLength>4096)return json({error:"Požadavek je příliš dlouhý."},413);
+const MAX_CHECKOUT_BYTES=4096;
+async function readLimitedBody(req:Request,maxBytes:number){
+ const reader=req.body.getReader();
+ const {value}=await reader.read();
+ if(value.byteLength>maxBytes){await reader.cancel();return null}
+ return "{}";
+}
+const rawBody=await readLimitedBody(req,MAX_CHECKOUT_BYTES);
+if(rawBody===null)return json({error:"Požadavek je příliš dlouhý."},413);
 try{const parsed=JSON.parse(rawBody);if(!parsed)return json({error:"Neplatný požadavek."},400);}catch{return json({error:"Neplatný požadavek."},400)}
 if(!uuidPattern.test(orgId))return json({error:"Neplatná firma."},400);
 admin.from("organization_memberships")
@@ -221,10 +228,14 @@ class IntegrationReadinessTests(unittest.TestCase):
 
     def test_checkout_body_limit_is_required(self):
         failures = scan_checkout_input(SAFE_CHECKOUT.replace(
-            'if(new TextEncoder().encode(rawBody).byteLength>4096)return json({error:"Požadavek je příliš dlouhý."},413);',
+            'if(rawBody===null)return json({error:"Požadavek je příliš dlouhý."},413);',
             "",
         ))
-        self.assertIn("checkout request bodies must be capped before privileged queries", failures)
+        self.assertIn("oversized checkout requests must return 413", failures)
+
+    def test_checkout_stream_limit_is_required(self):
+        failures = scan_checkout_input(SAFE_CHECKOUT.replace("await reader.cancel();", ""))
+        self.assertIn("checkout body reads must stop after the byte limit", failures)
 
     def test_stripe_webhook_input_guards_pass(self):
         self.assertEqual(scan_stripe_webhook_input(SAFE_STRIPE_WEBHOOK), [])
