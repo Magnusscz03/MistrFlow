@@ -102,7 +102,9 @@ async function readLimitedBody(req:Request,maxBytes:number){
  return "{}";
 }
 Deno.serve(async req=>{
- const raw=await readLimitedBody(req,MAX_INQUIRY_BYTES);
+ let raw:string|null;
+ try{raw=await readLimitedBody(req,MAX_INQUIRY_BYTES)}
+ catch(error){console.error("sales-inquiry",error);return json({error:"Zprávu nyní nelze uložit."},500)}
  if(raw===null||raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);
  try{JSON.parse(raw)}catch{return json({error:"Neplatný požadavek."},400)}
  const admin=createClient(url,key);
@@ -277,6 +279,13 @@ class IntegrationReadinessTests(unittest.TestCase):
             "JSON.parse(raw)",
         ))
         self.assertIn("malformed sales inquiry JSON must return 400", failures)
+
+    def test_sales_inquiry_body_read_failures_are_handled(self):
+        failures = scan_sales_inquiry_input(SAFE_SALES_INQUIRY.replace(
+            "try{raw=await readLimitedBody(req,MAX_INQUIRY_BYTES)}",
+            "raw=await readLimitedBody(req,MAX_INQUIRY_BYTES)",
+        ))
+        self.assertIn("sales inquiry body read failures must be handled", failures)
 
     def test_sales_inquiry_error_boundary_passes(self):
         self.assertEqual(scan_error_boundary(

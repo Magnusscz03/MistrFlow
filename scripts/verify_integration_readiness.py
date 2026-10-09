@@ -171,12 +171,15 @@ def scan_sales_inquiry_input(source: str) -> list[str]:
     handler = source[source.index(handler_marker):] if handler_marker in source else source
     body_reader = "readLimitedBody(req,MAX_INQUIRY_BYTES)"
     body_rejection = "if(raw===null||raw.length>6000)return json"
+    guarded_body_read = "try{raw=await readLimitedBody(req,MAX_INQUIRY_BYTES)}"
     malformed_body = 'return json({error:"Neplatný požadavek."},400)'
     privileged_setup = "const admin=createClient("
     if "const MAX_INQUIRY_BYTES=" not in source or body_reader not in handler:
         failures.append("sales inquiry bodies must use a fixed byte limit")
     if "value.byteLength" not in source or "reader.cancel()" not in source:
         failures.append("sales inquiry body reads must stop after the byte limit")
+    if guarded_body_read not in handler:
+        failures.append("sales inquiry body read failures must be handled")
     if body_rejection not in handler or "413" not in handler:
         failures.append("oversized sales inquiries must return 413")
     if "JSON.parse(raw)" not in handler or malformed_body not in handler:

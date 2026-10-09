@@ -22,7 +22,10 @@ Deno.serve(async req=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
  if(req.method!=="POST")return json({error:"Method not allowed"},405);
  if(req.headers.get("origin") && req.headers.get("origin")!=="https://mistrflow.vercel.app")return json({error:"Nepovolený původ požadavku."},403);
- const raw=await readLimitedBody(req,MAX_INQUIRY_BYTES);if(raw===null||raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);
+ let raw:string|null;
+ try{raw=await readLimitedBody(req,MAX_INQUIRY_BYTES)}
+ catch(error){console.error("sales-inquiry",error);return json({error:"Zprávu nyní nelze uložit."},500)}
+ if(raw===null||raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);
  let b:Record<string,unknown>;
  try{const parsed=JSON.parse(raw);if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("invalid body");b=parsed}
  catch{return json({error:"Neplatný požadavek."},400)}
