@@ -11,6 +11,7 @@ OWNER_BACKEND = ROOT / "backend/platform-owner-data/index.ts"
 OWNER_AI_BACKEND = ROOT / "backend/owner-ai/index.ts"
 CHECKOUT_BACKEND = ROOT / "backend/create-checkout/index.ts"
 STRIPE_WEBHOOK_BACKEND = ROOT / "backend/stripe-webhook/index.ts"
+SALES_INQUIRY_BACKEND = ROOT / "backend/sales-inquiry/index.ts"
 
 
 def scan(source: str) -> list[str]:
@@ -120,12 +121,32 @@ def scan_stripe_webhook_input(source: str) -> list[str]:
     return failures
 
 
+def scan_sales_inquiry_input(source: str) -> list[str]:
+    failures: list[str] = []
+    handler_marker = "Deno.serve(async req=>{"
+    handler = source[source.index(handler_marker):] if handler_marker in source else source
+    body_reader = "readLimitedBody(req,MAX_INQUIRY_BYTES)"
+    body_rejection = "if(raw===null||raw.length>6000)return json"
+    privileged_setup = "const admin=createClient("
+    if "const MAX_INQUIRY_BYTES=" not in source or body_reader not in handler:
+        failures.append("sales inquiry bodies must use a fixed byte limit")
+    if "value.byteLength" not in source or "reader.cancel()" not in source:
+        failures.append("sales inquiry body reads must stop after the byte limit")
+    if body_rejection not in handler or "413" not in handler:
+        failures.append("oversized sales inquiries must return 413")
+    if privileged_setup in handler and body_rejection in handler:
+        if handler.index(body_rejection) > handler.index(privileged_setup):
+            failures.append("sales inquiry size rejection must run before privileged setup")
+    return failures
+
+
 def main() -> int:
     try:
         source = OWNER_BACKEND.read_text(encoding="utf-8")
         owner_ai_source = OWNER_AI_BACKEND.read_text(encoding="utf-8")
         checkout_source = CHECKOUT_BACKEND.read_text(encoding="utf-8")
         stripe_webhook_source = STRIPE_WEBHOOK_BACKEND.read_text(encoding="utf-8")
+        sales_inquiry_source = SALES_INQUIRY_BACKEND.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
         print(f"FAIL: cannot read {OWNER_BACKEND.relative_to(ROOT)}: {error}")
         return 1
@@ -145,6 +166,7 @@ def main() -> int:
     ))
     failures.extend(scan_checkout_input(checkout_source))
     failures.extend(scan_stripe_webhook_input(stripe_webhook_source))
+    failures.extend(scan_sales_inquiry_input(sales_inquiry_source))
     for failure in failures:
         print("FAIL:", failure)
     print(f"Privileged backend readiness checked; {len(failures)} failures.")

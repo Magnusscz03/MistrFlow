@@ -1,14 +1,29 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import {createClient} from "npm:@supabase/supabase-js@2.57.4";
+const MAX_INQUIRY_BYTES=8192;
 const cors={"Access-Control-Allow-Origin":"https://mistrflow.vercel.app","Access-Control-Allow-Headers":"authorization,apikey,content-type","Access-Control-Allow-Methods":"POST,OPTIONS","Vary":"Origin","Cache-Control":"no-store"};
 const json=(x:unknown,status=200)=>new Response(JSON.stringify(x),{status,headers:{...cors,"Content-Type":"application/json"}});
 function key(){const direct=Deno.env.get("SUPABASE_SECRET_KEY")||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");if(direct)return direct;try{return JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")||"{}").default}catch{return ""}}
+async function readLimitedBody(req:Request,maxBytes:number){
+ const declared=req.headers.get("content-length");
+ if(declared!==null){const bytes=Number(declared);if(Number.isFinite(bytes)&&bytes>maxBytes)return null}
+ if(!req.body)return "";
+ const reader=req.body.getReader(),chunks:Uint8Array[]=[];let total=0;
+ while(true){
+  const {done,value}=await reader.read();if(done)break;
+  total+=value.byteLength;if(total>maxBytes){await reader.cancel();return null}
+  chunks.push(value);
+ }
+ const combined=new Uint8Array(total);let offset=0;
+ for(const chunk of chunks){combined.set(chunk,offset);offset+=chunk.byteLength}
+ return new TextDecoder().decode(combined);
+}
 Deno.serve(async req=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
  if(req.method!=="POST")return json({error:"Method not allowed"},405);
  if(req.headers.get("origin") && req.headers.get("origin")!=="https://mistrflow.vercel.app")return json({error:"Nepovolený původ požadavku."},403);
  try{
-  const raw=await req.text();if(raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);
+  const raw=await readLimitedBody(req,MAX_INQUIRY_BYTES);if(raw===null||raw.length>6000)return json({error:"Zpráva je příliš dlouhá."},413);
   const b=JSON.parse(raw);if(b.website)return json({ok:true});
   const name=String(b.name||"").trim(),email=String(b.email||"").trim().toLowerCase(),company=String(b.company||"").trim(),message=String(b.message||"").trim(),plan=String(b.plan_code||"start");
   if(name.length<2||name.length>120||company.length>160||email.length>254||!/^\S+@\S+\.\S+$/.test(email)||message.length>2000||!["start","pro","firma"].includes(plan)||b.consent!==true)return json({error:"Zkontrolujte jméno, e-mail a souhlas s kontaktem."},400);
