@@ -1,0 +1,140 @@
+[
+  {
+    "path": "site.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "billing.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "sw.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "site.css",
+    "status": 200,
+    "type": "text/css; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/0ju-p_v9o7wzh.css",
+    "status": 200,
+    "type": "text/css; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/2k-vb06h19vn9.css",
+    "status": 200,
+    "type": "text/css; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/2iyapmsnhx_ho.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/1sc6v28qjvkfw.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/00z4pmesk2f4f.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/29e1_35bz4bkp.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/0c0hxoamwjsbw.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/turbopack-1cvbnb3nlabgn.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/mistrflow-app-restored-v1.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/3vvmgpd_iqxl-.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/0pgmdgi0s2evj.js",
+    "status": 200,
+    "type": "application/javascript; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "_next/static/restored-v1/chunks/36e4hnicnkdtn.css",
+    "status": 200,
+    "type": "text/css; charset=utf-8",
+    "hash_matches": true
+  },
+  {
+    "path": "app?mode=register",
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "hash_matches": null
+  },
+  {
+    "path": "tarify",
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "hash_matches": null
+  },
+  {
+    "path": "download",
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "hash_matches": null
+  },
+  {
+    "path": "auth/confirmed",
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "hash_matches": null
+  },
+  {
+    "path": "public-pricing",
+    "status": 200,
+    "data": [
+      {
+        "code": "start",
+        "monthly_cents": 79000
+      },
+      {
+        "code": "pro",
+        "monthly_cents": 149000
+      },
+      {
+        "code": "firma",
+        "monthly_cents": 249000
+      }
+    ]
+  }
+]

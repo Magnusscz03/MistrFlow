@@ -1,4 +1,15 @@
-node_modules
-.next
-.env*
+# Credentials and local state
+.env
+.env.*
 !.env.example
+.vercel/
+node_modules/
+__pycache__/
+*.pyc
+*.jks
+*.keystore
+*.pem
+*.p12
+*.apk
+*.aab
+.DS_Store
