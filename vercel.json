@@ -78,5 +78,12 @@
   "framework": null,
   "outputDirectory": "dist",
   "buildCommand": "node scripts/verify-deploy.mjs",
-  "installCommand": ""
+  "installCommand": "",
+  "redirects": [
+    {
+      "source": "/intake/:token",
+      "destination": "/intake?token=:token",
+      "permanent": false
+    }
+  ]
 }
